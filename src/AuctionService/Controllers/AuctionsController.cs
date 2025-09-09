@@ -1,6 +1,7 @@
 using AuctionService.Data;
 using AuctionService.DTOs;
 using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +10,7 @@ namespace AuctionService.Controllers
 {
     [ApiController]
     [Route("api/auctions")]
-    public class AuctionsController
+    public class AuctionsController : ControllerBase
     {
         private readonly AuctionDbContext _context;
         private readonly IMapper _mapper;
@@ -21,14 +22,16 @@ namespace AuctionService.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<AuctionDto>>> GetAllAuctions()
+        public async Task<ActionResult<List<AuctionDto>>> GetAllAuctions(string? date)
         {
-            var auctions = await _context.Auctions
-                .Include(a => a.Item)
-                .OrderBy(a => a.Item.Make)
-                .ToListAsync();
+            var query = _context.Auctions.AsQueryable();
 
-            return _mapper.Map<List<AuctionDto>>(auctions);
+            if (!string.IsNullOrEmpty(date) && DateTime.TryParse(date, out var parsedDate))
+            {
+                query = query.Where(a => a.CreatedAt.CompareTo(DateTime.Parse(date).ToUniversalTime()) > 0);
+            }
+
+            return await query.ProjectTo<AuctionDto>(_mapper.ConfigurationProvider).ToListAsync();
         }
 
         [HttpGet("{id}")]
@@ -87,9 +90,9 @@ namespace AuctionService.Controllers
 
             var res = await _context.SaveChangesAsync() > 0;
 
-            if (!res)
+            if (res)
             {
-                return new BadRequestResult();
+                return new OkObjectResult(_mapper.Map<AuctionDto>(auction));
             }
 
             return new NoContentResult();
@@ -108,12 +111,12 @@ namespace AuctionService.Controllers
             _context.Auctions.Remove(auction);
             var res = await _context.SaveChangesAsync() > 0;
 
-            if (!res)
+            if (res)
             {
-                return new BadRequestResult();
+                return new OkResult();
             }
 
-            return new NoContentResult();
+            return new BadRequestResult();
         }
     }
 }
