@@ -17,9 +17,9 @@ namespace SearchService.Controller
 
             query.Sort(x => x.Ascending(i => i.Make));
 
-            if (!string.IsNullOrEmpty(searchParams.term))
+            if (!string.IsNullOrEmpty(searchParams.searchTerm))
             {
-                query.Match(Search.Full, searchParams.term).SortByTextScore();
+                query.Match(Search.Full, searchParams.searchTerm).SortByTextScore();
             }
             query = searchParams.OrderBy switch
             {
