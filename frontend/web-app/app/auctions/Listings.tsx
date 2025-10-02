@@ -3,43 +3,55 @@
 import AuctionCard from "./AuctionCard";
 import AppPagination from "../components/AppPagination";
 import { getData } from "../actions/auctionActions";
-import { use, useEffect, useState } from "react";
-import { Auction, PagedResult } from "@/types";
+import { useEffect, useState } from "react";
 import Filters from "./Filters";
 import { useParamsStore } from "@hooks/useParamsStore";
 import { useShallow } from "zustand/shallow";
 import qs from "query-string";
 import EmptyFilter from "../components/EmptyFilter";
+import { useAuctionStore } from "@/hooks/useAuctionStore";
 
 
 export default function Listings() {
-    const [data, setData] = useState<PagedResult<Auction>>();
+    const [loading, setLoading] = useState(true);
     const params = useParamsStore(useShallow(state => ({
         pageNumber: state.pageNumber,
         pageSize: state.pageSize,
         searchTerm: state.searchTerm,
         orderBy: state.orderBy,
         filterBy: state.filterBy,
+        seller: state.seller,
+        winner: state.winner
+    })));
+
+    const data = useAuctionStore(useShallow(state => ({
+        auctions: state.auctions,
+        totalCount: state.totalCount,
+        pageCount: state.pageCount
     })));
 
     const setParams = useParamsStore(state => state.setParams);
-
-    function setPageNumber(pageNumber: number) {
-        setParams({ pageNumber });
-    }
+    const setData = useAuctionStore(state => state.setData);
 
     const url = qs.stringifyUrl({
         url: '',
         query: params,
     }, { skipEmptyString: true });
 
+
+    function setPageNumber(pageNumber: number) {
+        setParams({ pageNumber });
+    }
+
     useEffect(() => {
         getData(url).then(data => {
             setData(data);
-        });
-    }, [url]);
+            setLoading(false);
+        })
+    }, [url, setData])
 
-    if (!data) {
+
+    if (loading) {
         return <div>Loading...</div>;
     }
 
@@ -48,7 +60,7 @@ export default function Listings() {
             <Filters />
             {data.totalCount === 0 ? (<EmptyFilter showReset />) : (
                 <>
-                    <div className="grid grid-cols-4 gap-6">{data && data.result.map((auction) =>
+                    <div className="grid grid-cols-4 gap-6">{data && data.auctions.map((auction) =>
                         <AuctionCard auction={auction} key={auction.id} />
                     )}</div>
                     <div className="flex justify-center mt-4">
